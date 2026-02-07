@@ -46,6 +46,7 @@ export const FundDetailContent = ({ isin }: FundDetailContentProps) => {
     const [historyData, setHistoryData] = useState<{
         enrichedHistory: any[];
         chartData: any;
+        historyMonths: number;
     } | null>(null);
 
     const valorActual = fund ? fund.participaciones * fund.NAV_actual : 0;
