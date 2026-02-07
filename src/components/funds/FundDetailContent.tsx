@@ -139,6 +139,7 @@ export const FundDetailContent = ({ isin }: FundDetailContentProps) => {
         };
 
         setHistoryData({ enrichedHistory, chartData, historyMonths });
+        console.log("📊 [DEBUG COMPONENT HISTORY]:", enrichedHistory.length, "items", enrichedHistory);
 
     }, [fund, isPositive]); // Re-run if fund changes
 
@@ -259,33 +260,35 @@ export const FundDetailContent = ({ isin }: FundDetailContentProps) => {
                         </CardContent>
                     </Card>
 
-                    <Card className="max-h-[500px] overflow-hidden flex flex-col mt-6">
+                    <Card className="flex flex-col mt-6 h-[500px]">
                         <CardHeader>
                             <CardTitle>Tabla Histórica ({historyData ? historyData.enrichedHistory.length : '...'} meses)</CardTitle>
                         </CardHeader>
-                        <CardContent className="overflow-y-auto flex-1 pr-1">
-                            <table className="w-full text-sm">
-                                <thead className="text-xs text-muted-foreground sticky top-0 bg-card z-10 bg-opacity-100 py-2">
-                                    <tr className="border-b border-border">
-                                        <th className="text-left pb-2 pl-2">Fecha</th>
-                                        <th className="text-right pb-2">Valor Liq.</th>
-                                        <th className="text-right pb-2">Valor Total</th>
-                                        <th className="text-right pb-2 pr-2">Rend. Año (YTD)</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-border/50">
-                                    {historyData && [...historyData.enrichedHistory].reverse().map((h, i) => (
-                                        <tr key={i} className="hover:bg-muted/50 transition-colors">
-                                            <td className="py-2 pl-2 text-muted-foreground">{formatDate(h.fecha)}</td>
-                                            <td className="py-2 text-right font-mono">{formatCurrency(h.valor)}</td>
-                                            <td className="py-2 text-right font-mono font-medium">{formatCurrency(h.valorTotal)}</td>
-                                            <td className={`py-2 text-right pr-2 ${h.rendimientoAnual >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                                                {formatPercent(h.rendimientoAnual)}
-                                            </td>
+                        <CardContent className="flex-1 overflow-hidden p-0">
+                            <div className="h-full overflow-y-auto pr-2 custom-scrollbar p-6 pt-0">
+                                <table className="w-full text-sm">
+                                    <thead className="text-xs text-muted-foreground sticky top-0 bg-card z-10 bg-opacity-100 py-2">
+                                        <tr className="border-b border-border">
+                                            <th className="text-left pb-2 pl-2 bg-card">Fecha</th>
+                                            <th className="text-right pb-2 bg-card">Valor Liq.</th>
+                                            <th className="text-right pb-2 bg-card">Valor Total</th>
+                                            <th className="text-right pb-2 pr-2 bg-card">Rend. Año (YTD)</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody className="divide-y divide-border/50">
+                                        {historyData && [...historyData.enrichedHistory].reverse().map((h, i) => (
+                                            <tr key={i} className="hover:bg-muted/50 transition-colors">
+                                                <td className="py-2 pl-2 text-muted-foreground">{formatDate(h.fecha)}</td>
+                                                <td className="py-2 text-right font-mono">{formatCurrency(h.valor)}</td>
+                                                <td className="py-2 text-right font-mono font-medium">{formatCurrency(h.valorTotal)}</td>
+                                                <td className={`py-2 text-right pr-2 ${h.rendimientoAnual >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                                    {formatPercent(h.rendimientoAnual)}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         </CardContent>
                     </Card>
                 </div>

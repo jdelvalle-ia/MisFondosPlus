@@ -116,15 +116,21 @@ export const PortfolioProvider = ({ children }: { children: React.ReactNode }) =
                         // Optional: update currency if desired, or just warn
                     }
 
-                    addLog(`✓ Actualizado ${fondo.denominacion}: ${formatCurrency(data.nav)} (${data.date})${data.is_real_time === false ? ' [Dato antiguo]' : ''}`);
-                    if (data.debug) addLog(`  ℹ Debug: ${data.debug}`);
+                    const histLen = data.history?.length || 0;
+                    addLog(`✓ Actualizado ${fondo.denominacion}: ${formatCurrency(data.nav)} (${data.date})`);
+
+                    if (data.debug && data.debug.includes("Delayed")) addLog(`  ℹ Nota: ${data.debug}`);
 
                     // --- PROCESS HISTORY FROM API ---
+                    // Log removed as it was not appearing, info moved to main log above
+
                     if (data.history && Array.isArray(data.history) && data.history.length > 0) {
+                        // Init history if needed
                         // Init history if needed
                         if (!fondo.historial) fondo.historial = [];
 
-                        addLog(`  ↳ Recibidos ${data.history.length} puntos históricos.`);
+                        // SORT ASCENDING to ensure we process Jan 1 -> Jan 31 order. 
+                        data.history.sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
                         data.history.forEach((hPoint: any) => {
                             if (!hPoint.nav || !hPoint.date) return;
@@ -171,52 +177,39 @@ export const PortfolioProvider = ({ children }: { children: React.ReactNode }) =
                             fondo.historial = fondo.historial!.slice(-24);
                         }
                     }
-                }
 
+                    // --- ENSURE LATEST NAV IS IN HISTORY ---
+                    if (data.nav && data.date) {
+                        if (!fondo.historial) fondo.historial = [];
+
+                        const latestDate = new Date(data.date);
+                        const existingEntryIndex = fondo.historial.findIndex(h => {
+                            const hDate = new Date(h.fecha);
+                            // Check if exact same date OR same month/year
+                            return (hDate.getTime() === latestDate.getTime()) ||
+                                (hDate.getMonth() === latestDate.getMonth() && hDate.getFullYear() === latestDate.getFullYear());
+                        });
+
+                        const newVal = Number(data.nav) * fondo.participaciones;
+
+                        if (existingEntryIndex >= 0) {
+                            // Update existing entry for this month/day with the LATEST retrieved value
+                            fondo.historial[existingEntryIndex] = { fecha: data.date, valor: newVal };
+                        } else {
+                            // Add new entry
+                            fondo.historial.push({ fecha: data.date, valor: newVal });
+                        }
+
+                        // Re-sort to be sure
+                        fondo.historial.sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
+                    }
+                }
             } catch (err) {
                 // console.error(`Error updating fund ${fondo.ISIN}:`, err);
                 addLog(`⚠ Error al actualizar ${fondo.denominacion}: ${err instanceof Error ? err.message : String(err)}`);
             }
 
-            // --- CURRENT MONTH UPDATE LOGIC ---
-            // Create history array if missing
-            if (!fondo.historial) {
-                fondo.historial = [];
-            }
-
-            const now = new Date();
-            const currentVal = fondo.participaciones * fondo.NAV_actual;
-            // Use the actual NAV date for the history entry if it's the current month
-            const useDate = fondo.fecha_NAV || now.toISOString();
-
-            // fondo.historial is guaranteed to be array here
-            const lastEntry = fondo.historial!.length > 0 ? fondo.historial![fondo.historial!.length - 1] : null;
-
-            let shouldPush = true;
-            if (lastEntry) {
-                const lastDate = new Date(lastEntry.fecha);
-                // Check if same month and year
-                if (lastDate.getMonth() === now.getMonth() && lastDate.getFullYear() === now.getFullYear()) {
-                    // Same month: Update existing entry with LATEST exact date
-                    fondo.historial![fondo.historial!.length - 1] = {
-                        fecha: useDate,
-                        valor: currentVal
-                    };
-                    shouldPush = false;
-                }
-            }
-
-            if (shouldPush) {
-                fondo.historial!.push({
-                    fecha: useDate,
-                    valor: currentVal
-                });
-            }
-
-            // Keep only last 24 months
-            if (fondo.historial.length > 24) {
-                fondo.historial = fondo.historial.slice(-24);
-            }
+            // (Redundant logic removed)
 
             // --- RATE LIMITING DELAY ---
             // Wait 5 seconds before next request to avoid Gemini 429 errors (1 requests per 5s = 12 RPM, safe for 15 RPM limit)
@@ -297,10 +290,15 @@ export const PortfolioProvider = ({ children }: { children: React.ReactNode }) =
                 if (data.history && Array.isArray(data.history) && data.history.length > 0) {
                     if (!fondo.historial) fondo.historial = [];
 
+                    if (!fondo.historial) fondo.historial = [];
+
+                    // SORT ASCENDING to ensure we process Jan 1 -> Jan 31 order. 
+                    // This ensures the LATEST date for a month overwrites earlier ones.
+                    data.history.sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
                     data.history.forEach((hPoint: any) => {
                         if (!hPoint.nav || !hPoint.date) return;
-
-                        // Normalize to End of Month, BUT keep exact date if it's the current month
+                        // ...
                         const hDate = new Date(hPoint.date);
                         const now = new Date();
                         const isCurrentMonth = hDate.getMonth() === now.getMonth() && hDate.getFullYear() === now.getFullYear();
@@ -333,31 +331,33 @@ export const PortfolioProvider = ({ children }: { children: React.ReactNode }) =
                     fondo.historial.sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
                 }
             }
+
+            // --- ENSURE LATEST NAV IS IN HISTORY (SINGLE UPDATE) ---
+            if (data.nav && data.date) {
+                if (!fondo.historial) fondo.historial = [];
+                const latestDate = new Date(data.date);
+                const existingEntryIndex = fondo.historial.findIndex(h => {
+                    const hDate = new Date(h.fecha);
+                    return (hDate.getTime() === latestDate.getTime()) ||
+                        (hDate.getMonth() === latestDate.getMonth() && hDate.getFullYear() === latestDate.getFullYear());
+                });
+                const newVal = Number(data.nav) * fondo.participaciones;
+
+                if (existingEntryIndex >= 0) {
+                    fondo.historial[existingEntryIndex] = { fecha: data.date, valor: newVal };
+                } else {
+                    fondo.historial.push({ fecha: data.date, valor: newVal });
+                }
+                fondo.historial.sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
+
+                // Keep only last 24 months
+                if (fondo.historial.length > 24) fondo.historial = fondo.historial.slice(-24);
+            }
+
         } catch (err) {
             addLog(`⚠ Error al actualizar ${fondo.denominacion}: ${err instanceof Error ? err.message : String(err)}`);
         }
 
-        // Logic History Update Single
-        if (!fondo.historial) fondo.historial = [];
-        const now = new Date();
-        const currentVal = fondo.participaciones * fondo.NAV_actual;
-        const useDate = fondo.fecha_NAV || now.toISOString();
-
-        const lastEntry = fondo.historial!.length > 0 ? fondo.historial![fondo.historial!.length - 1] : null;
-        let shouldPush = true;
-
-        if (lastEntry) {
-            const lastDate = new Date(lastEntry.fecha);
-            if (lastDate.getMonth() === now.getMonth() && lastDate.getFullYear() === now.getFullYear()) {
-                fondo.historial![fondo.historial!.length - 1] = { fecha: useDate, valor: currentVal };
-                shouldPush = false;
-            }
-        }
-        if (shouldPush) fondo.historial!.push({ fecha: useDate, valor: currentVal });
-
-        // Sort and Slice
-        fondo.historial.sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
-        if (fondo.historial!.length > 24) fondo.historial = fondo.historial!.slice(-24);
 
         const updatedPortfolio = {
             ...portfolio,

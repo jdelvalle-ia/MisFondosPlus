@@ -25,7 +25,7 @@ export const PortfolioControls = ({ mode = 'all', className }: PortfolioControls
         a.href = url;
         const cleanName = portfolio.info_cartera.nombre.replace(/\s+/g, '_');
         const dateStr = new Date().toISOString().split('T')[0];
-        a.download = `Cartera_${cleanName}_${dateStr}.json`;
+        a.download = `${cleanName}_${dateStr}.json`;
         a.click();
         addLog("Cartera exportada a JSON.");
     };

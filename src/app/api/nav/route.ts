@@ -29,30 +29,33 @@ export async function POST(request: Request) {
         const lastYear = year - 1;
         const twoYearsAgo = year - 2;
 
-        const prompt = `Eres un analista de datos financieros experto. Tu prioridad es localizar el ÚLTIMO Valor Liquidativo (NAV) disponible, sea cual sea su fecha.
+        const today = new Date().toISOString().split('T')[0];
+        const prompt = `Eres un analista de datos financieros experto. Hoy es ${today}. Tu objetivo es encontrar el NAV actual y CUALQUIER dato histórico disponible.
 
 INSTRUCCIÓN:
-Busca y extrae el NAV más reciente publicado para este fondo:
-Nombre: ${cleanName}
-ISIN: ${isin}
+1. BUSCA EN GOOGLE:
+   - "${isin} valores liquidativos historicos"
+   - "${isin} historical net asset value"
+   - "${isin} cierre mensual"
+   - "site:bankinter.com ${isin}"
+2. IMPORTANTE: Tu meta es reconstruir el HISTORIAL MENSUAL. Busca específicamente los valores de "Fin de Mes" (30/31) de los últimos 2 a 3 años.
 
-REGLAS DE BÚSQUEDA:
-1. PRIORIDAD: Busca primero datos de hoy o ayer. Si no existen, retrocede hasta encontrar el último cierre oficial disponible.
-2. VALIDACIÓN: Asegúrate de que el dato corresponde a este ISIN específico.
-3. MONEDA: Detecta la divisa del NAV (EUR, USD, etc.).
-4. HISTORIAL: Genera una serie de los últimos 24 meses (1 punto por mes).
+REGLAS DE EXTACCIÓN:
+- ACTUAL: El más reciente encontrado (hoy/ayer).
+- HISTORIAL: Prioriza sacar 1 dato por mes (el último disponible de ese mes). TODOS los meses posibles de los últimos 24.
+- Si encuentras una tabla con datos diarios, saca solo el último de cada mes y el actual.
 
-SALIDA JSON:
+SALIDA JSON ESTRICTA:
 {
   "current": { 
       "nav": number, 
-      "date": "YYYY-MM-DD",     // Fecha del dato encontrado
-      "currency": "ISO_CODE",   // Moneda detectada
-      "is_real_time": boolean   // true si la fecha es hoy/ayer, false si es más antiguo
+      "date": "YYYY-MM-DD",
+      "currency": "ISO_CODE",
+      "is_real_time": boolean
   },
   "history": [ 
-      { "date": "YYYY-MM-DD", "nav": number },
-      ...
+      { "date": "YYYY-MM-DD", "nav": number }
+      // SOLO incluir días con datos encontrados. NO generar entradas con null.
   ]
 }
         `;
@@ -60,11 +63,18 @@ SALIDA JSON:
         const result = await model.generateContent(prompt);
         const response = await result.response;
         const text = response.text();
+        console.log("Raw Gemini response:", text);
 
         // Clean up markdown
-        let jsonString = text;
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
-        if (jsonMatch) jsonString = jsonMatch[0];
+        let jsonString = text.replace(/```json/g, '').replace(/```/g, '').trim();
+
+        // Find the first '{' and the last '}' to extract the JSON object
+        const firstOpen = jsonString.indexOf('{');
+        const lastClose = jsonString.lastIndexOf('}');
+
+        if (firstOpen !== -1 && lastClose !== -1) {
+            jsonString = jsonString.substring(firstOpen, lastClose + 1);
+        }
 
         let parsed;
         try {
@@ -83,7 +93,7 @@ SALIDA JSON:
             currency: parsed.current?.currency,
             is_real_time: parsed.current?.is_real_time,
             history: Array.isArray(parsed.history) ? parsed.history : [],
-            debug: `Found ${parsed.history?.length || 0} history points. Real-time: ${parsed.current?.is_real_time}`
+            debug: `Datapoint: ${parsed.current?.date} (${parsed.current?.is_real_time ? 'Live' : 'Delayed'}). History: ${parsed.history?.length || 0} pts`
         });
 
     } catch (error: any) {
