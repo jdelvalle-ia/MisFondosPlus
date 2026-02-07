@@ -11,6 +11,8 @@ export interface IFondo {
     NAV_actual: number;
     fecha_NAV: string; // ISO Date
     historial?: { fecha: string; valor: number }[]; // 24-month history (end of month)
+    is_real_time?: boolean;
+    last_updated_source?: string;
 }
 
 export interface IHistorico {

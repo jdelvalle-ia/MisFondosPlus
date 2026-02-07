@@ -29,32 +29,32 @@ export async function POST(request: Request) {
         const lastYear = year - 1;
         const twoYearsAgo = year - 2;
 
-        const prompt = `You are a financial data assistant. I need the NAV (Net Asset Value) and HISTORICAL PRICES for:
-        ISIN: ${isin}
-        Name: ${cleanName}
-        
-        STEP 1: Find the CURRENT NAV and date.
-        STEP 2: Search specifically for "historical data", "precios históricos", "valor liquidativo histórico" or "historical performance" for this fund.
-        Focus on finding monthly closing prices for years ${twoYearsAgo}, ${lastYear}, and ${year}.
-        
-        Look for data from reliable sources like Morningstar, Financial Times, Yahoo Finance, QueFondos, or similar.
-        
-        I need 1 data point per month for the last 24 months.
-        
-        Return JSON format:
-        {
-            "nav": <number>,
-            "date": "YYYY-MM-DD",
-            "history": [
-                {"date": "YYYY-MM-DD", "nav": <number>},
-                ...
-            ]
-        }
-        
-        CRITICAL: 
-        - If you cannot find a full table, try to find at least the NAV from 1 year ago and 6 months ago.
-        - If you find a chart, estimate the values.
-        - "history" array MUST NOT be empty if any data is found.
+        const prompt = `Eres un analista de datos financieros experto. Tu prioridad es localizar el ÚLTIMO Valor Liquidativo (NAV) disponible, sea cual sea su fecha.
+
+INSTRUCCIÓN:
+Busca y extrae el NAV más reciente publicado para este fondo:
+Nombre: ${cleanName}
+ISIN: ${isin}
+
+REGLAS DE BÚSQUEDA:
+1. PRIORIDAD: Busca primero datos de hoy o ayer. Si no existen, retrocede hasta encontrar el último cierre oficial disponible.
+2. VALIDACIÓN: Asegúrate de que el dato corresponde a este ISIN específico.
+3. MONEDA: Detecta la divisa del NAV (EUR, USD, etc.).
+4. HISTORIAL: Genera una serie de los últimos 24 meses (1 punto por mes).
+
+SALIDA JSON:
+{
+  "current": { 
+      "nav": number, 
+      "date": "YYYY-MM-DD",     // Fecha del dato encontrado
+      "currency": "ISO_CODE",   // Moneda detectada
+      "is_real_time": boolean   // true si la fecha es hoy/ayer, false si es más antiguo
+  },
+  "history": [ 
+      { "date": "YYYY-MM-DD", "nav": number },
+      ...
+  ]
+}
         `;
 
         const result = await model.generateContent(prompt);
@@ -78,10 +78,12 @@ export async function POST(request: Request) {
         }
 
         return NextResponse.json({
-            nav: typeof parsed.nav === 'string' ? parseFloat(parsed.nav.replace(',', '.')) : parsed.nav,
-            date: parsed.date || new Date().toISOString().split('T')[0],
+            nav: parsed.current?.nav,
+            date: parsed.current?.date || new Date().toISOString().split('T')[0],
+            currency: parsed.current?.currency,
+            is_real_time: parsed.current?.is_real_time,
             history: Array.isArray(parsed.history) ? parsed.history : [],
-            debug: `Found ${parsed.history?.length || 0} history points. Raw length: ${text.length}`
+            debug: `Found ${parsed.history?.length || 0} history points. Real-time: ${parsed.current?.is_real_time}`
         });
 
     } catch (error: any) {

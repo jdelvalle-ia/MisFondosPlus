@@ -108,7 +108,15 @@ export const PortfolioProvider = ({ children }: { children: React.ReactNode }) =
                 if (data.nav) {
                     fondo.NAV_actual = data.nav;
                     fondo.fecha_NAV = data.date || new Date().toISOString();
-                    addLog(`✓ Actualizado ${fondo.denominacion}: ${formatCurrency(data.nav)} (${data.date})`);
+                    fondo.is_real_time = data.is_real_time;
+                    fondo.last_updated_source = "Google/Gemini";
+
+                    if (data.currency && data.currency !== fondo.moneda) {
+                        addLog(`⚠️ Moneda diferente detectada para ${fondo.denominacion}: ${data.currency} vs ${fondo.moneda}`);
+                        // Optional: update currency if desired, or just warn
+                    }
+
+                    addLog(`✓ Actualizado ${fondo.denominacion}: ${formatCurrency(data.nav)} (${data.date})${data.is_real_time === false ? ' [Dato antiguo]' : ''}`);
                     if (data.debug) addLog(`  ℹ Debug: ${data.debug}`);
 
                     // --- PROCESS HISTORY FROM API ---
