@@ -1,0 +1,210 @@
+{
+    "info_cartera": {
+        "nombre": "Cartera Estratégica 2026",
+        "ultima_actualizacion": "2026-02-05T12:00:00.000Z"
+    },
+    "fondos": [
+        {
+            "ISIN": "IE00B0M62Q58",
+            "denominacion": "iShares MSCI World ETF",
+            "categoria": "Renta Variable Global",
+            "gestora": "BlackRock",
+            "fecha_compra": "2024-01-15",
+            "importe": 25000,
+            "moneda": "EUR",
+            "participaciones": 312.5,
+            "comisiones": 12.50,
+            "NAV_actual": 88.40,
+            "fecha_NAV": "2026-02-04"
+        },
+        {
+            "ISIN": "LU0996179007",
+            "denominacion": "Amundi Index S&P 500",
+            "categoria": "Renta Variable USA",
+            "gestora": "Amundi",
+            "fecha_compra": "2023-06-10",
+            "importe": 15000,
+            "moneda": "EUR",
+            "participaciones": 145.63,
+            "comisiones": 8.00,
+            "NAV_actual": 125.30,
+            "fecha_NAV": "2026-02-04"
+        },
+        {
+            "ISIN": "IE00B3XXRP09",
+            "denominacion": "Vanguard S&P 500 UCITS ETF",
+            "categoria": "Renta Variable USA",
+            "gestora": "Vanguard",
+            "fecha_compra": "2025-03-20",
+            "importe": 10000,
+            "moneda": "EUR",
+            "participaciones": 115.2,
+            "comisiones": 5.00,
+            "NAV_actual": 92.50,
+            "fecha_NAV": "2026-02-04"
+        },
+        {
+            "ISIN": "LU1681045370",
+            "denominacion": "Amundi MSCI Emerging Markets",
+            "categoria": "Renta Variable Emergente",
+            "gestora": "Amundi",
+            "fecha_compra": "2024-08-01",
+            "importe": 8000,
+            "moneda": "EUR",
+            "participaciones": 450.2,
+            "comisiones": 10.00,
+            "NAV_actual": 16.80,
+            "fecha_NAV": "2026-02-04"
+        },
+        {
+            "ISIN": "IE00B4L5Y983",
+            "denominacion": "iShares Core MSCI Japan",
+            "categoria": "Renta Variable Japón",
+            "gestora": "BlackRock",
+            "fecha_compra": "2024-11-15",
+            "importe": 5000,
+            "moneda": "EUR",
+            "participaciones": 120.5,
+            "comisiones": 5.00,
+            "NAV_actual": 43.10,
+            "fecha_NAV": "2026-02-04"
+        },
+        {
+            "ISIN": "LU0290358497",
+            "denominacion": "Nordea 1 - Global Climate and Environment",
+            "categoria": "Renta Variable Sectorial",
+            "gestora": "Nordea",
+            "fecha_compra": "2023-02-28",
+            "importe": 6000,
+            "moneda": "EUR",
+            "participaciones": 180.2,
+            "comisiones": 15.00,
+            "NAV_actual": 38.90,
+            "fecha_NAV": "2026-02-04"
+        },
+        {
+            "ISIN": "IE00BDBRDM35",
+            "denominacion": "iShares Global Corp Bond EUR Hedged",
+            "categoria": "Renta Fija Global",
+            "gestora": "BlackRock",
+            "fecha_compra": "2024-05-10",
+            "importe": 20000,
+            "moneda": "EUR",
+            "participaciones": 4000,
+            "comisiones": 20.00,
+            "NAV_actual": 5.08,
+            "fecha_NAV": "2026-02-04"
+        },
+        {
+            "ISIN": "LU0119620416",
+            "denominacion": "Schroder ISF Euro Corporate Bond",
+            "categoria": "Renta Fija Euro",
+            "gestora": "Schroders",
+            "fecha_compra": "2023-09-01",
+            "importe": 12000,
+            "moneda": "EUR",
+            "participaciones": 550.4,
+            "comisiones": 12.00,
+            "NAV_actual": 22.15,
+            "fecha_NAV": "2026-02-04"
+        }
+    ],
+    "historico_24m": [
+        {
+            "fecha": "2024-02-01",
+            "valor": 95000
+        },
+        {
+            "fecha": "2024-03-01",
+            "valor": 96200
+        },
+        {
+            "fecha": "2024-04-01",
+            "valor": 95800
+        },
+        {
+            "fecha": "2024-05-01",
+            "valor": 97500
+        },
+        {
+            "fecha": "2024-06-01",
+            "valor": 99000
+        },
+        {
+            "fecha": "2024-07-01",
+            "valor": 98500
+        },
+        {
+            "fecha": "2024-08-01",
+            "valor": 100500
+        },
+        {
+            "fecha": "2024-09-01",
+            "valor": 101200
+        },
+        {
+            "fecha": "2024-10-01",
+            "valor": 100800
+        },
+        {
+            "fecha": "2024-11-01",
+            "valor": 103000
+        },
+        {
+            "fecha": "2024-12-01",
+            "valor": 105500
+        },
+        {
+            "fecha": "2025-01-01",
+            "valor": 106000
+        },
+        {
+            "fecha": "2025-02-01",
+            "valor": 108200
+        },
+        {
+            "fecha": "2025-03-01",
+            "valor": 107500
+        },
+        {
+            "fecha": "2025-04-01",
+            "valor": 109000
+        },
+        {
+            "fecha": "2025-05-01",
+            "valor": 110500
+        },
+        {
+            "fecha": "2025-06-01",
+            "valor": 112000
+        },
+        {
+            "fecha": "2025-07-01",
+            "valor": 111800
+        },
+        {
+            "fecha": "2025-08-01",
+            "valor": 114500
+        },
+        {
+            "fecha": "2025-09-01",
+            "valor": 113200
+        },
+        {
+            "fecha": "2025-10-01",
+            "valor": 115000
+        },
+        {
+            "fecha": "2025-11-01",
+            "valor": 118500
+        },
+        {
+            "fecha": "2025-12-01",
+            "valor": 120000
+        },
+        {
+            "fecha": "2026-01-01",
+            "valor": 121500
+        }
+    ]
+}
