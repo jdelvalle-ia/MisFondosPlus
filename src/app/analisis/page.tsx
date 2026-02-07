@@ -91,7 +91,7 @@ export default function AnalysisPage() {
 
         // Consolidate historical returns to get statistics
         const sortedKeys = Array.from(allDatesSet).sort();
-        const historicalReturns = [];
+        const historicalReturns: number[] = [];
 
         sortedKeys.forEach(key => {
             const data = monthlyPortfolioReturns.get(key);
