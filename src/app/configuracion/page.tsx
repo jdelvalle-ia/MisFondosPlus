@@ -9,17 +9,34 @@ import { useState } from "react";
 
 const ApiStatusBadge = () => {
     const [status, setStatus] = useState<'idle' | 'checking' | 'ok' | 'error'>('idle');
+    const [errorMessage, setErrorMessage] = useState<string>('');
 
     const handleCheck = async () => {
         setStatus('checking');
-        // Simulate check
-        await new Promise(r => setTimeout(r, 1500));
-        setStatus('ok'); // Always OK for demo
+        setErrorMessage('');
+
+        try {
+            const response = await fetch('/api/connection-test', {
+                method: 'POST',
+            });
+
+            if (response.ok) {
+                setStatus('ok');
+            } else {
+                const data = await response.json();
+                setStatus('error');
+                setErrorMessage(data.error || 'Error de conexión');
+            }
+        } catch (error) {
+            console.error(error);
+            setStatus('error');
+            setErrorMessage('Error de red');
+        }
     };
 
     if (status === 'checking') {
         return (
-            <Button variant="outline" size="sm" disabled className="h-8 text-xs border-dashed border-yellow-500/50 text-yellow-500">
+            <Button variant="outline" size="sm" disabled className="h-8 text-xs border-dashed border-yellow-500/50 text-yellow-500 w-full justify-center">
                 <RefreshCw className="w-3 h-3 mr-2 animate-spin" /> Verificando...
             </Button>
         );
@@ -31,15 +48,30 @@ const ApiStatusBadge = () => {
                 <span className="inline-block px-3 py-1 bg-emerald-900/40 text-emerald-400 text-xs font-bold rounded border border-emerald-900/50 animate-in fade-in">
                     ONLINE
                 </span>
-                <Button variant="ghost" size="sm" onClick={handleCheck} className="h-6 text-[10px] text-muted-foreground">
-                    <RefreshCw className="w-3 h-3 mr-1" /> Test
+                <Button variant="ghost" size="sm" onClick={handleCheck} className="h-6 text-[10px] text-muted-foreground hover:text-emerald-400">
+                    <RefreshCw className="w-3 h-3 mr-1" /> Re-test
                 </Button>
             </div>
         );
     }
 
+    if (status === 'error') {
+        return (
+            <div className="flex flex-col gap-2 w-full">
+                <Button variant="outline" size="sm" onClick={handleCheck} className="h-8 text-xs border-dashed border-red-500/50 text-red-400 w-full justify-center hover:bg-red-900/20">
+                    <RefreshCw className="w-3 h-3 mr-2" /> REINTENTAR
+                </Button>
+                {errorMessage && (
+                    <span className="text-[10px] text-red-500 text-center leading-tight px-1 font-mono">
+                        {errorMessage}
+                    </span>
+                )}
+            </div>
+        );
+    }
+
     return (
-        <Button variant="outline" size="sm" onClick={handleCheck} className="h-8 text-xs border-dashed border-gray-700 bg-transparent hover:bg-white/5 text-gray-400">
+        <Button variant="outline" size="sm" onClick={handleCheck} className="h-8 text-xs border-dashed border-gray-700 bg-transparent hover:bg-white/5 text-gray-400 w-full justify-center">
             <Wifi className="w-3 h-3 mr-2" /> TEST CONEXIÓN
         </Button>
     );
