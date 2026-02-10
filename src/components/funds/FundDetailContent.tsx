@@ -111,12 +111,25 @@ export const FundDetailContent = ({ isin }: FundDetailContentProps) => {
 
         const enrichedHistory = historyDataPoints.map((point, index, array) => {
             const pointDate = new Date(point.fecha);
-            const startOfYear = array.find(p => {
-                const d = new Date(p.fecha);
-                return d.getFullYear() === pointDate.getFullYear();
-            }) || point;
+            const currentYear = pointDate.getFullYear();
 
-            const ytdReturn = startOfYear.valor > 0 ? ((point.valor - startOfYear.valor) / startOfYear.valor) * 100 : 0;
+            // Find baseline for YTD: Last value of previous year
+            const prevYearClose = [...array]
+                .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()) // Sort desc
+                .find(p => {
+                    const d = new Date(p.fecha);
+                    return d.getFullYear() === currentYear - 1;
+                });
+
+            // Fallback: Use the very first data point of the current year (start of investment/history)
+            const firstOfCurrentYear = array.find(p => new Date(p.fecha).getFullYear() === currentYear);
+
+            // Baseline is ideally Close of Prev Year. If not, Open of Curr Year.
+            const baseline = prevYearClose || firstOfCurrentYear || point;
+
+            const ytdReturn = baseline.valor > 0
+                ? ((point.valor - baseline.valor) / baseline.valor) * 100
+                : 0;
 
             return {
                 ...point,

@@ -410,9 +410,7 @@ export default function AnalysisPage() {
                                         </div>
                                     </div>
                                 ))}
-                                <Button className="w-full mt-4" variant="outline">
-                                    Exportar Plan de Rebalanceo (PDF)
-                                </Button>
+
                             </CardContent>
                         </Card>
                     </div>
