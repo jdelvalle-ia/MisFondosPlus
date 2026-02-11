@@ -59,13 +59,39 @@ export default function ReportsPage() {
                 const startDateObj = new Date(formData.startDate);
                 const endDateObj = new Date(formData.endDate);
 
-                // Find closest points
                 const startPoint = history.find((h: any) => new Date(h.fecha) <= startDateObj) || history[history.length - 1];
                 const endPoint = history.find((h: any) => new Date(h.fecha) <= endDateObj) || history[0];
 
                 // Determine Unit Values
                 let startVal = startPoint ? Number(startPoint.valor) : (fund.participaciones > 0 ? fund.importe / fund.participaciones : 0);
-                let endVal = endPoint ? Number(endPoint.valor) : Number(fund.NAV_actual);
+                let startPointDate = startPoint ? new Date(startPoint.fecha) : null;
+
+                // For End Value: Check if NAV_actual is a better match
+                let endVal = endPoint ? Number(endPoint.valor) : 0;
+                let endPointDate = endPoint ? new Date(endPoint.fecha) : null;
+
+                // Priority Logic for End Date:
+                // If we have NAV_actual and it is closer to endDateObj (or cleaner) than the stale history point
+                if (fund.NAV_actual && fund.fecha_NAV) {
+                    const navDate = new Date(fund.fecha_NAV);
+                    // If existing endPoint is older than 20 days from target, but NAV_actual is closer?
+                    // Or simpler: If existing endPoint month != target endDate Month, but NAV_actual Month == target Month
+                    // Or just: If NAV_actual is NEWER than endPoint, assume it's the "Current" state intended.
+
+                    if (!endPointDate || navDate > endPointDate) {
+                        // Only swap if NAV_date <= endDateObj (don't use future data for past report)
+                        // OR if endDateObj is "Today/Future" (meaning "Current Status report")
+
+                        // Relaxed Check: If report end date is seemingly "current" (within last 30 days of real time)
+                        // and NAV_actual is newer than history.
+                        const isReportCurrent = endDateObj.getTime() > (Date.now() - 35 * 24 * 60 * 60 * 1000); // Report date is recent
+
+                        if (isReportCurrent || navDate <= endDateObj) {
+                            endVal = Number(fund.NAV_actual);
+                            endPointDate = navDate;
+                        }
+                    }
+                }
 
                 if (isNaN(startVal)) startVal = 0;
                 if (isNaN(endVal)) endVal = 0;
@@ -77,8 +103,8 @@ export default function ReportsPage() {
                     ...fund,
                     startBalance,
                     endBalance,
-                    startPointDate: startPoint ? new Date(startPoint.fecha) : null,
-                    endPointDate: endPoint ? new Date(endPoint.fecha) : null
+                    startPointDate,
+                    endPointDate
                 };
             });
 

@@ -76,8 +76,8 @@ export default function AnalysisPage() {
 
                     if (prev > 0) {
                         const fundReturn = (curr - prev) / prev;
-                        // Avoid crazy outliers (e.g. > 50% in a month which might be bad data)
-                        if (Math.abs(fundReturn) < 0.50) {
+                        // Avoid crazy outliers (e.g. > 30% in a month which might be bad data)
+                        if (Math.abs(fundReturn) < 0.30) {
                             const currentMonthData = monthlyPortfolioReturns.get(key) || { weightedReturnSum: 0, totalWeight: 0 };
                             currentMonthData.weightedReturnSum += fundReturn * weight;
                             currentMonthData.totalWeight += weight;
@@ -110,7 +110,10 @@ export default function AnalysisPage() {
             const varMonthly = historicalReturns.reduce((sum, r) => sum + Math.pow(r - meanMonthly, 2), 0) / historicalReturns.length;
 
             // Annualize (approx)
-            annualReturn = Math.pow(1 + meanMonthly, 12) - 1;
+            // Cap meanMonthly to avoid explosion (e.g. max 5% monthly avg = ~80% annual)
+            const cappedMeanMonthly = Math.max(Math.min(meanMonthly, 0.05), -0.05);
+
+            annualReturn = Math.pow(1 + cappedMeanMonthly, 12) - 1;
             const stdDevMonthly = Math.sqrt(varMonthly);
             annualVol = stdDevMonthly * Math.sqrt(12);
         }
