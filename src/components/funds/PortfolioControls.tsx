@@ -39,6 +39,25 @@ export const PortfolioControls = ({ mode = 'all', className }: PortfolioControls
             try {
                 const json = JSON.parse(event.target?.result as string) as ICartera;
                 if (json.fondos && json.info_cartera) {
+                    // Sanitize imported data: Limit history to max 24 months
+                    if (Array.isArray(json.fondos)) {
+                        const todayStr = new Date().toISOString().split('T')[0];
+                        json.fondos.forEach((f: any) => {
+                            if (f.historial && Array.isArray(f.historial)) {
+                                // 1. Filter out future dates
+                                f.historial = f.historial.filter((h: any) => h.fecha.split('T')[0] <= todayStr);
+                                // 2. Sort descending (newest first)
+                                f.historial.sort((a: any, b: any) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+                                // 3. Slice to max 24
+                                if (f.historial.length > 24) {
+                                    f.historial = f.historial.slice(0, 24);
+                                }
+                                // 4. Sort ascending again for charts (oldest -> newest)
+                                f.historial.sort((a: any, b: any) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
+                            }
+                        });
+                    }
+
                     setPortfolio(json);
                     addLog(`Cartera cargada exitosamente: ${json.info_cartera.nombre}`);
                 } else {

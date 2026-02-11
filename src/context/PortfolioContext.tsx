@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { ICartera } from '@/types';
 import { formatCurrency } from '@/lib/utils';
+import { updateFundWithApiData } from '@/lib/fund-utils';
 
 interface PortfolioContextType {
     portfolio: ICartera | null;
@@ -66,28 +67,30 @@ export const PortfolioProvider = ({ children }: { children: React.ReactNode }) =
     const setPortfolio = (data: ICartera) => {
         setPortfolioState(data);
         localStorage.setItem('misFondos_portfolio', JSON.stringify(data));
-        addLog(`Portfolio updated: ${data.info_cartera.nombre}`);
+        // addLog(`Portfolio updated: ${data.info_cartera.nombre}`); // Redundant
     };
 
     const refreshPortfolio = async () => {
         if (!portfolio || loading) return; // Prevent concurrent updates
         setLoading(true);
         const startTime = Date.now();
-        addLog(`Iniciando actualización REAL de valores para ${portfolio.fondos.length} fondos...`);
+        const total = portfolio.fondos.length;
 
-        // Deep clone to safely mutate
-        const updatedFondos = JSON.parse(JSON.stringify(portfolio.fondos)) as typeof portfolio.fondos;
-        const total = updatedFondos.length;
+        addLog(`=== INICIANDO SINCRONIZACIÓN MASIVA DE ${total} FONDOS ===`);
+        addLog(`Hora de inicio: ${new Date().toLocaleTimeString()}`);
+
+        // We will mutate a clone of the funds array to keep track, 
+        // but we will ALSO update the state incrementally.
+        let currentFunds = [...portfolio.fondos];
 
         // Sequential update to avoid rate limits
         for (let i = 0; i < total; i++) {
-            const fondo = updatedFondos[i];
+            // Always get the latest state/clone to ensure we don't overwrite previous loop updates if state changed elsewhere (unlikely during blocking load, but good practice)
+            const fondo = currentFunds[i];
             const remaining = total - 1 - i;
 
             setRefreshStatus({ current: fondo.denominacion, remaining, total });
-            addLog(`Buscando datos en Google para [${i + 1}/${total}]: ${fondo.denominacion}...`);
-
-            const fundStartTime = performance.now();
+            addLog(`[${i + 1}/${total}] Solicitando datos para: ${fondo.denominacion}...`);
 
             try {
                 // Call our server-side API which searches Google + Gemini
@@ -104,138 +107,53 @@ export const PortfolioProvider = ({ children }: { children: React.ReactNode }) =
 
                 const data = await response.json();
 
-                // Update Fund Data with Real Values
-                if (data.nav) {
-                    fondo.NAV_actual = data.nav;
-                    fondo.fecha_NAV = data.date || new Date().toISOString();
-                    fondo.is_real_time = data.is_real_time;
-                    fondo.last_updated_source = "Google/Gemini";
+                // Unified update logic
+                const { success, stats } = updateFundWithApiData(fondo, data);
 
-                    if (data.currency && data.currency !== fondo.moneda) {
-                        addLog(`⚠️ Moneda diferente detectada para ${fondo.denominacion}: ${data.currency} vs ${fondo.moneda}`);
-                        // Optional: update currency if desired, or just warn
-                    }
-
-                    const histLen = data.history?.length || 0;
-                    addLog(`✓ Actualizado ${fondo.denominacion}: ${formatCurrency(data.nav)} (${data.date})`);
-
+                if (success) {
+                    addLog(`✓ Actualizado: ${stats}`);
                     if (data.debug && data.debug.includes("Delayed")) addLog(`  ℹ Nota: ${data.debug}`);
 
-                    // --- PROCESS HISTORY FROM API ---
-                    // Log removed as it was not appearing, info moved to main log above
-
-                    if (data.history && Array.isArray(data.history) && data.history.length > 0) {
-                        // Init history if needed
-                        // Init history if needed
-                        if (!fondo.historial) fondo.historial = [];
-
-                        // SORT ASCENDING to ensure we process Jan 1 -> Jan 31 order. 
-                        data.history.sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-                        data.history.forEach((hPoint: any) => {
-                            if (!hPoint.nav || !hPoint.date) return;
-
-                            // Normalize to End of Month, BUT keep exact date if it's the current month (don't project to future)
-                            const hDate = new Date(hPoint.date);
-                            const now = new Date();
-                            const isCurrentMonth = hDate.getMonth() === now.getMonth() && hDate.getFullYear() === now.getFullYear();
-
-                            let dateStr;
-                            if (isCurrentMonth) {
-                                // Use exact date for current month
-                                dateStr = hPoint.date;
-                            } else {
-                                // For past months, normalize to end of month for cleaner chart
-                                const endOfHMonth = new Date(hDate.getFullYear(), hDate.getMonth() + 1, 0);
-                                endOfHMonth.setHours(12, 0, 0, 0);
-                                dateStr = endOfHMonth.toISOString();
-                            }
-
-                            // Check if we already have this month-year
-                            const existingIndex = fondo.historial!.findIndex(h => {
-                                const exDate = new Date(h.fecha);
-                                return exDate.getFullYear() === hDate.getFullYear() &&
-                                    exDate.getMonth() === hDate.getMonth();
-                            });
-
-                            const valTotal = Number(hPoint.nav) * fondo.participaciones;
-
-                            if (existingIndex >= 0) {
-                                // Update existing (User prefers keeping data, but updating value if found is safe)
-                                fondo.historial![existingIndex] = { fecha: dateStr, valor: valTotal };
-                            } else {
-                                // Insert new
-                                fondo.historial!.push({ fecha: dateStr, valor: valTotal });
-                            }
-                        });
-
-                        // Sort by date ascending (old -> new)
-                        fondo.historial!.sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
-
-                        // Keep only last 24 months (newest)
-                        if (fondo.historial!.length > 24) {
-                            fondo.historial = fondo.historial!.slice(-24);
+                    // --- INCREMENTAL SAVE START ---
+                    // Create a new portfolio object with the updated funds array
+                    // We need to clone the array deeply enough or just trust the mutation check above? 
+                    // `updateFundWithApiData` mutated `fondo` which is a reference inside `currentFunds`.
+                    // So `currentFunds` is already updated. We just need to trigger state update.
+                    const updatedPortfolioState = {
+                        ...portfolio,
+                        fondos: [...currentFunds], // Create new array ref
+                        info_cartera: {
+                            ...portfolio.info_cartera,
+                            ultima_actualizacion: new Date().toISOString()
                         }
-                    }
+                    };
 
-                    // --- ENSURE LATEST NAV IS IN HISTORY ---
-                    if (data.nav && data.date) {
-                        if (!fondo.historial) fondo.historial = [];
+                    // Update State & LocalStorage IMMEDIATELY
+                    setPortfolio(updatedPortfolioState);
+                    localStorage.setItem('misFondos_lastSync', new Date().toISOString());
+                    // --- INCREMENTAL SAVE END ---
 
-                        const latestDate = new Date(data.date);
-                        const existingEntryIndex = fondo.historial.findIndex(h => {
-                            const hDate = new Date(h.fecha);
-                            // Check if exact same date OR same month/year
-                            return (hDate.getTime() === latestDate.getTime()) ||
-                                (hDate.getMonth() === latestDate.getMonth() && hDate.getFullYear() === latestDate.getFullYear());
-                        });
-
-                        const newVal = Number(data.nav) * fondo.participaciones;
-
-                        if (existingEntryIndex >= 0) {
-                            // Update existing entry for this month/day with the LATEST retrieved value
-                            fondo.historial[existingEntryIndex] = { fecha: data.date, valor: newVal };
-                        } else {
-                            // Add new entry
-                            fondo.historial.push({ fecha: data.date, valor: newVal });
-                        }
-
-                        // Re-sort to be sure
-                        fondo.historial.sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
-                    }
+                } else {
+                    addLog(`⚠ ${fondo.denominacion}: Sin cambios significativos.`);
                 }
             } catch (err) {
-                // console.error(`Error updating fund ${fondo.ISIN}:`, err);
-                addLog(`⚠ Error al actualizar ${fondo.denominacion}: ${err instanceof Error ? err.message : String(err)}`);
+                addLog(`✖ Error en ${fondo.denominacion}: ${err instanceof Error ? err.message : String(err)}`);
             }
 
-            // (Redundant logic removed)
-
             // --- RATE LIMITING DELAY ---
-            // Wait 5 seconds before next request to avoid Gemini 429 errors (1 requests per 5s = 12 RPM, safe for 15 RPM limit)
+            // Wait 5 seconds before next request to avoid Gemini 429 errors
             if (i < total - 1) {
+                // addLog(`  ... Esperando 5s para siguiente petición ...`);
                 await new Promise(resolve => setTimeout(resolve, 5000));
             }
         }
-
-        // Save updated history to state
-        const updatedPortfolio = {
-            ...portfolio,
-            fondos: updatedFondos,
-            info_cartera: {
-                ...portfolio.info_cartera,
-                ultima_actualizacion: new Date().toISOString()
-            }
-        };
-        setPortfolio(updatedPortfolio);
 
         const duration = ((Date.now() - startTime) / 1000).toFixed(2);
         const now = new Date();
         setRefreshStatus(null);
         setLastSyncTime(now);
-        localStorage.setItem('misFondos_lastSync', now.toISOString());
         setLoading(false);
-        addLog(`✅ Sincronización finalizada en ${duration}s.`);
+        addLog(`=== SINCRONIZACIÓN FINALIZADA EN ${duration}s ===`);
     };
 
     const moveFund = (fromIndex: number, toIndex: number) => {
@@ -281,78 +199,21 @@ export const PortfolioProvider = ({ children }: { children: React.ReactNode }) =
             const data = await response.json();
 
             if (data.nav) {
-                fondo.NAV_actual = data.nav;
-                fondo.fecha_NAV = data.date || new Date().toISOString();
-                addLog(`✓ Actualizado ${fondo.denominacion}: ${formatCurrency(data.nav)} (${data.date})`);
+                const { success, stats } = updateFundWithApiData(fondo, data);
+                if (success) {
+                    addLog(`✓ Actualizado ${fondo.denominacion}: ${stats}`);
+                    if (data.debug) addLog(`  ℹ Debug: ${data.debug}`);
+                }
+            } else {
+                addLog(`⚠ No se encontraron datos para ${fondo.denominacion}`);
                 if (data.debug) addLog(`  ℹ Debug: ${data.debug}`);
-
-                // --- PROCESS HISTORY FROM API ---
-                if (data.history && Array.isArray(data.history) && data.history.length > 0) {
-                    if (!fondo.historial) fondo.historial = [];
-
-                    if (!fondo.historial) fondo.historial = [];
-
-                    // SORT ASCENDING to ensure we process Jan 1 -> Jan 31 order. 
-                    // This ensures the LATEST date for a month overwrites earlier ones.
-                    data.history.sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-                    data.history.forEach((hPoint: any) => {
-                        if (!hPoint.nav || !hPoint.date) return;
-                        // ...
-                        const hDate = new Date(hPoint.date);
-                        const now = new Date();
-                        const isCurrentMonth = hDate.getMonth() === now.getMonth() && hDate.getFullYear() === now.getFullYear();
-
-                        let dateStr;
-                        if (isCurrentMonth) {
-                            dateStr = hPoint.date;
-                        } else {
-                            const endOfHMonth = new Date(hDate.getFullYear(), hDate.getMonth() + 1, 0);
-                            endOfHMonth.setHours(12, 0, 0, 0);
-                            dateStr = endOfHMonth.toISOString();
-                        }
-
-                        const existingIndex = fondo.historial!.findIndex(h => {
-                            const exDate = new Date(h.fecha);
-                            // Compare with hDate which is always defined
-                            return exDate.getFullYear() === hDate.getFullYear() &&
-                                exDate.getMonth() === hDate.getMonth();
-                        });
-
-                        const valTotal = Number(hPoint.nav) * fondo.participaciones;
-
-                        if (existingIndex >= 0) {
-                            fondo.historial![existingIndex] = { fecha: dateStr as string, valor: valTotal };
-                        } else {
-                            fondo.historial!.push({ fecha: dateStr as string, valor: valTotal });
-                        }
-                    });
-
-                    fondo.historial.sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
-                }
             }
 
-            // --- ENSURE LATEST NAV IS IN HISTORY (SINGLE UPDATE) ---
-            if (data.nav && data.date) {
-                if (!fondo.historial) fondo.historial = [];
-                const latestDate = new Date(data.date);
-                const existingEntryIndex = fondo.historial.findIndex(h => {
-                    const hDate = new Date(h.fecha);
-                    return (hDate.getTime() === latestDate.getTime()) ||
-                        (hDate.getMonth() === latestDate.getMonth() && hDate.getFullYear() === latestDate.getFullYear());
-                });
-                const newVal = Number(data.nav) * fondo.participaciones;
-
-                if (existingEntryIndex >= 0) {
-                    fondo.historial[existingEntryIndex] = { fecha: data.date, valor: newVal };
-                } else {
-                    fondo.historial.push({ fecha: data.date, valor: newVal });
-                }
-                fondo.historial.sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
-
-                // Keep only last 24 months
-                if (fondo.historial.length > 24) fondo.historial = fondo.historial.slice(-24);
-            }
+            // Update state with new data (even if no change, triggers re-render)
+            const newPortfolio = { ...portfolio, fondos: updatedFondos };
+            setPortfolio(newPortfolio);
+            // Save to local storage
+            localStorage.setItem('portfolio_v2', JSON.stringify(newPortfolio));
 
         } catch (err) {
             addLog(`⚠ Error al actualizar ${fondo.denominacion}: ${err instanceof Error ? err.message : String(err)}`);

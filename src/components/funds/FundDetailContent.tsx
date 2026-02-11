@@ -82,31 +82,13 @@ export const FundDetailContent = ({ isin }: FundDetailContentProps) => {
                 valor: h.valor / fund.participaciones, // Restore Unit NAV
                 valorTotal: h.valor
             }));
-            // Sort by date ascending just in case
+            // Sort by date ascending
             historyDataPoints.sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
 
         } else {
-            // USE SIMULATED DATA (Fallback)
-            historyDataPoints = Array.from({ length: historyMonths + 1 }, (_, i) => {
-                const d = new Date();
-                d.setMonth(d.getMonth() - (historyMonths - i));
-
-                const progress = i / historyMonths;
-                const base = (fund.importe / fund.participaciones);
-                const target = fund.NAV_actual;
-
-                const trend = base + (target - base) * progress;
-                const volatility = base * 0.05;
-                const noise = (Math.random() - 0.5) * volatility;
-
-                const nav = Math.max(0, trend + noise);
-
-                return {
-                    fecha: d.toISOString().split('T')[0],
-                    valor: nav,
-                    valorTotal: nav * fund.participaciones
-                };
-            });
+            // NO DATA AVAILABLE - Do not simulate
+            setHistoryData(null);
+            return;
         }
 
         const enrichedHistory = historyDataPoints.map((point, index, array) => {
