@@ -73,7 +73,13 @@ export default function ReportsPage() {
                 const startBalance = startVal * fund.participaciones;
                 const endBalance = endVal * fund.participaciones;
 
-                return { ...fund, startBalance, endBalance };
+                return {
+                    ...fund,
+                    startBalance,
+                    endBalance,
+                    startPointDate: startPoint ? new Date(startPoint.fecha) : null,
+                    endPointDate: endPoint ? new Date(endPoint.fecha) : null
+                };
             });
 
             // 2. Calculate Portfolio Totals
@@ -98,12 +104,38 @@ export default function ReportsPage() {
                     // Formatter
                     const formatMoney = (val: number) => new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(val);
                     const formatPct = (val: number) => new Intl.NumberFormat('es-ES', { style: 'percent', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val / 100);
+                    const formatShortDate = (date: Date) => date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' });
+
+                    // Date Check Logic
+                    let saldoInicialStr = formatMoney(fund.startBalance);
+                    if (fund.startPointDate) {
+                        const requestedMonth = new Date(formData.startDate).getMonth();
+                        const actualMonth = fund.startPointDate.getMonth();
+                        const requestedYear = new Date(formData.startDate).getFullYear();
+                        const actualYear = fund.startPointDate.getFullYear();
+
+                        if (requestedMonth !== actualMonth || requestedYear !== actualYear) {
+                            saldoInicialStr += ` (${formatShortDate(fund.startPointDate)})`;
+                        }
+                    }
+
+                    let saldoFinalStr = formatMoney(fund.endBalance);
+                    if (fund.endPointDate) {
+                        const requestedMonth = new Date(formData.endDate).getMonth();
+                        const actualMonth = fund.endPointDate.getMonth();
+                        const requestedYear = new Date(formData.endDate).getFullYear();
+                        const actualYear = fund.endPointDate.getFullYear();
+
+                        if (requestedMonth !== actualMonth || requestedYear !== actualYear) {
+                            saldoFinalStr += ` (${formatShortDate(fund.endPointDate)})`;
+                        }
+                    }
 
                     return {
                         ...fund,
                         reportData: {
-                            saldoInicial: formatMoney(fund.startBalance),
-                            saldoFinal: formatMoney(fund.endBalance),
+                            saldoInicial: saldoInicialStr,
+                            saldoFinal: saldoFinalStr,
                             crecimientoPct: formatPct(growthPct),
                             pesoPct: formatPct(weightPct)
                         }

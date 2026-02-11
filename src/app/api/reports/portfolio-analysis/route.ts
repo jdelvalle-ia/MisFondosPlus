@@ -132,6 +132,7 @@ export async function POST(req: Request) {
             `*   Usa tablas Markdown para los datos numéricos.`,
             `*   Separa las secciones claramente.`,
             `*   Extiéndete en los comentarios: evita frases cortas; usa párrafos explicativos completos.`,
+            `*   **CRÍTICO PARA LA TABLA:** Copia EXACTAMENTE los valores de texto de "saldoInicial" y "saldoFinal". Si incluyen una fecha entre paréntesis (ej: "10.000 € (30/12/24)"), IMPRÍMELA TAL CUAL en la celda para indicar la fecha real del dato.`,
             ``,
             `Genera el informe ahora.`
         ];
