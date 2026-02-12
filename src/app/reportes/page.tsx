@@ -62,42 +62,60 @@ export default function ReportsPage() {
                 const startPoint = history.find((h: any) => new Date(h.fecha) <= startDateObj) || history[history.length - 1];
                 const endPoint = history.find((h: any) => new Date(h.fecha) <= endDateObj) || history[0];
 
-                // Determine Unit Values
-                let startVal = startPoint ? Number(startPoint.valor) : (fund.participaciones > 0 ? fund.importe / fund.participaciones : 0);
+                // Determine Unit Values -> NOW DETERMINING TOTAL BALANCES DIRECTLY
+                // fund.historial contains TOTAL VALUES (NAV * Shares), not unit NAVs.
+                let startBalance = startPoint ? Number(startPoint.valor) : (fund.importe || 0);
                 let startPointDate = startPoint ? new Date(startPoint.fecha) : null;
 
-                // For End Value: Check if NAV_actual is a better match
-                let endVal = endPoint ? Number(endPoint.valor) : 0;
+                // For End Value
+                let endBalance = endPoint ? Number(endPoint.valor) : 0;
                 let endPointDate = endPoint ? new Date(endPoint.fecha) : null;
 
-                // Priority Logic for End Date:
-                // If we have NAV_actual and it is closer to endDateObj (or cleaner) than the stale history point
+                // Propuesta de cambio para respetar la fecha solicitada si existe en el historial
                 if (fund.NAV_actual && fund.fecha_NAV) {
                     const navDate = new Date(fund.fecha_NAV);
-                    // If existing endPoint is older than 20 days from target, but NAV_actual is closer?
-                    // Or simpler: If existing endPoint month != target endDate Month, but NAV_actual Month == target Month
-                    // Or just: If NAV_actual is NEWER than endPoint, assume it's the "Current" state intended.
+                    const navDateStr = navDate.toISOString().split('T')[0];
 
-                    if (!endPointDate || navDate > endPointDate) {
-                        // Only swap if NAV_date <= endDateObj (don't use future data for past report)
-                        // OR if endDateObj is "Today/Future" (meaning "Current Status report")
+                    const endDateStr = endDateObj.toISOString().split('T')[0];
+                    const endPointDateStr = endPointDate ? endPointDate.toISOString().split('T')[0] : '';
 
-                        // Relaxed Check: If report end date is seemingly "current" (within last 30 days of real time)
-                        // and NAV_actual is newer than history.
-                        const isReportCurrent = endDateObj.getTime() > (Date.now() - 35 * 24 * 60 * 60 * 1000); // Report date is recent
+                    // LOGIC: Use Current NAV ONLY if:
+                    // 1. We don't have a valid history point (endPointDate is null)
+                    // 2. OR The requested Report End Date IS "Today" or "Future" (implied by isReportCurrent AND gap) 
+                    //    AND the history point we found is STALE (older than requested date).
+                    // 3. CRITICAL: If we found a history point that EXACTLY matches the requested End Date, KEEP IT.
 
-                        if (isReportCurrent || navDate <= endDateObj) {
-                            endVal = Number(fund.NAV_actual);
-                            endPointDate = navDate;
+                    const isExactMatch = endPointDateStr === endDateStr;
+
+                    // If we have an exact match for the requested date in history, we should probably keep it
+                    // UNLESS the user is asking for "Today" and current NAV is fresher than the "Today" history (unlikely).
+
+                    if (!isExactMatch) {
+                        // If we don't have an exact match, we might want to default to Current NAV if it's "better"
+                        // e.g. Report End Date = Today (Feb 12), History only goes to Jan 31. 
+                        // Then we MUST use Current NAV.
+
+                        // If Report End Date = Jan 31. History has Jan 31. isExactMatch = true. We keep History.
+
+                        // If Report End Date = Feb 12. History has Jan 31. isExactMatch = false.
+                        // We check if NAV_actual (Feb 12) is closer/better.
+
+                        if (!endPointDate || navDate > endPointDate) {
+                            // Only use NAV if it doesn't exceed the requested report scope excessively 
+                            // (e.g. don't use Feb data for a Dec report)
+                            // But here we are handling the case where we WANT the latest status.
+
+                            if (navDate <= endDateObj || endDateObj.getTime() > (Date.now() - 24 * 60 * 60 * 1000)) {
+                                // If NAV date is within range OR report is for "Now"
+                                endBalance = Number(fund.NAV_actual * fund.participaciones); // NAV_actual is UNIT value
+                                endPointDate = navDate;
+                            }
                         }
                     }
                 }
 
-                if (isNaN(startVal)) startVal = 0;
-                if (isNaN(endVal)) endVal = 0;
-
-                const startBalance = startVal * fund.participaciones;
-                const endBalance = endVal * fund.participaciones;
+                if (isNaN(startBalance)) startBalance = 0;
+                if (isNaN(endBalance)) endBalance = 0;
 
                 return {
                     ...fund,
@@ -128,7 +146,13 @@ export default function ReportsPage() {
                     const weightPct = totalEndBalance > 0 ? (fund.endBalance / totalEndBalance) * 100 : 0;
 
                     // Formatter
-                    const formatMoney = (val: number) => new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(val);
+                    const formatMoney = (val: number) => new Intl.NumberFormat('es-ES', {
+                        style: 'currency',
+                        currency: 'EUR',
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                        useGrouping: true
+                    }).format(val);
                     const formatPct = (val: number) => new Intl.NumberFormat('es-ES', { style: 'percent', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val / 100);
                     const formatShortDate = (date: Date) => date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' });
 
