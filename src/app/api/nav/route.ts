@@ -344,7 +344,7 @@ INSTRUCCIONES CLAVE:
             date: currentNavData?.date || endDateStr,
             currency: currentNavData?.currency || "EUR",
             is_real_time: false,
-            history: finalHistory.slice(0, 36),
+            history: finalHistory.slice(0, 25),
             debug: debugString
         });
 

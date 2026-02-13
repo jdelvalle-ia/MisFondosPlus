@@ -212,8 +212,7 @@ export const PortfolioProvider = ({ children }: { children: React.ReactNode }) =
             // Update state with new data (even if no change, triggers re-render)
             const newPortfolio = { ...portfolio, fondos: updatedFondos };
             setPortfolio(newPortfolio);
-            // Save to local storage
-            localStorage.setItem('portfolio_v2', JSON.stringify(newPortfolio));
+            addLog(`  ℹ Historial actualizado: ${fondo.historial?.length || 0} entradas.`);
 
         } catch (err) {
             addLog(`⚠ Error al actualizar ${fondo.denominacion}: ${err instanceof Error ? err.message : String(err)}`);

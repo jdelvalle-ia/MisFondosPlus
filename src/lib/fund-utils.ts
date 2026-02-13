@@ -111,12 +111,30 @@ export function updateFundWithApiData(fondo: IFondo, apiData: any): { success: b
         // 3. Convert back to array
         let mergedHistory = Array.from(contentMap.values());
 
+        // 3a. Deduplicate by Month (Keep only LATEST entry per month)
+        const monthlyMap = new Map<string, any>();
+        mergedHistory.forEach(h => {
+            const d = new Date(h.fecha);
+            const key = `${d.getFullYear()}-${d.getMonth()}`; // Group by Year-Month
+
+            if (!monthlyMap.has(key)) {
+                monthlyMap.set(key, h);
+            } else {
+                // Keep the one with later date
+                const existing = monthlyMap.get(key);
+                if (new Date(h.fecha) > new Date(existing.fecha)) {
+                    monthlyMap.set(key, h);
+                }
+            }
+        });
+        mergedHistory = Array.from(monthlyMap.values());
+
         // 4. Sort Ascending (Old -> New)
         mergedHistory.sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
 
-        // 5. Slice to max 36 (increased from 24 to allow denser history)
-        if (mergedHistory.length > 36) {
-            fondo.historial = mergedHistory.slice(-36);
+        // 5. Slice to max 25 (24 months + current)
+        if (mergedHistory.length > 25) {
+            fondo.historial = mergedHistory.slice(-25);
         } else {
             fondo.historial = mergedHistory;
         }
@@ -138,7 +156,7 @@ export function updateFundWithApiData(fondo: IFondo, apiData: any): { success: b
 
         // Re-sort and re-slice just in case
         fondo.historial.sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
-        if (fondo.historial.length > 36) fondo.historial = fondo.historial.slice(-36);
+        if (fondo.historial.length > 25) fondo.historial = fondo.historial.slice(-25);
     }
 
     return {
