@@ -6,7 +6,7 @@ import { usePortfolio } from "@/context/PortfolioContext";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { formatCurrency, formatDate, formatPercent } from "@/lib/utils";
-import { Printer, FileText, BarChart3, BrainCircuit, ArrowLeft } from "lucide-react";
+import { Printer, FileText, BarChart3, BrainCircuit, ArrowLeft, Sparkles } from "lucide-react";
 import {
     Chart as ChartJS,
     CategoryScale,
@@ -18,7 +18,10 @@ import {
 import { Doughnut } from 'react-chartjs-2';
 import { PortfolioAnalysisForm } from "@/components/reportes/PortfolioAnalysisForm";
 import { PortfolioAnalysisReport } from "@/components/reportes/PortfolioAnalysisReport";
+import { PortfolioDeepAnalysisForm } from "@/components/reportes/PortfolioDeepAnalysisForm";
+import { PortfolioDeepAnalysisReport } from "@/components/reportes/PortfolioDeepAnalysisReport";
 import { InvestmentSnapshotReport } from "@/components/reportes/InvestmentSnapshotReport";
+import { Modal } from "@/components/ui/Modal";
 
 ChartJS.register(CategoryScale, LinearScale, ArcElement, Tooltip, Legend);
 
@@ -26,13 +29,19 @@ export default function ReportsPage() {
     const { portfolio, loading } = usePortfolio();
 
     // Feature States
-    const [activeTab, setActiveTab] = useState<"basic" | "analysis">("basic");
+    const [activeTab, setActiveTab] = useState<"basic" | "deep_analysis" | "analysis">("basic");
     const [aiReportMarkdown, setAiReportMarkdown] = useState<string | null>(null);
     const [aiLoading, setAiLoading] = useState(false);
+
+    const [aiDeepReportMarkdown, setAiDeepReportMarkdown] = useState<string | null>(null);
+    const [aiDeepLoading, setAiDeepLoading] = useState(false);
+    const [showDeepConfirm, setShowDeepConfirm] = useState(false);
+    const [pendingDeepFormData, setPendingDeepFormData] = useState<any>(null);
 
     // Refs for printing
     const basicReportRef = useRef<HTMLDivElement>(null);
     const aiReportRef = useRef<HTMLDivElement>(null);
+    const aiDeepReportRef = useRef<HTMLDivElement>(null);
     const [reportDate, setReportDate] = React.useState<string>("");
 
     React.useEffect(() => {
@@ -48,6 +57,98 @@ export default function ReportsPage() {
         contentRef: aiReportRef,
         documentTitle: `Informe_Estrategico_${new Date().toISOString().split('T')[0]}`,
     });
+
+    const handlePrintAiDeep = useReactToPrint({
+        contentRef: aiDeepReportRef,
+        documentTitle: `Analisis_Cartera_IA_${new Date().toISOString().split('T')[0]}`,
+    });
+
+    const handleGenerateAiDeepReport = async () => {
+        setShowDeepConfirm(true);
+    };
+
+    const confirmAndExecuteDeepReport = async () => {
+        setShowDeepConfirm(false);
+        if (!portfolio) return;
+
+        setAiDeepLoading(true);
+        try {
+            const today = new Date();
+            const prevYear = today.getFullYear() - 1;
+            const startDateObj = new Date(prevYear, 11, 31);
+            const endDateObj = today;
+
+            const fundsWithBalances = portfolio.fondos.map((fund: any) => {
+                const history = fund.historial ? [...fund.historial].sort((a: any, b: any) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()) : [];
+
+                const startPoint = history.find((h: any) => new Date(h.fecha) <= startDateObj) || history[history.length - 1];
+                const endPoint = history.find((h: any) => new Date(h.fecha) <= endDateObj) || history[0];
+
+                let startBalance = startPoint ? Number(startPoint.valor) : (fund.importe || 0);
+
+                let endBalance = endPoint ? Number(endPoint.valor) : 0;
+                let endPointDate = endPoint ? new Date(endPoint.fecha) : null;
+
+                if (fund.NAV_actual && fund.fecha_NAV) {
+                    const navDate = new Date(fund.fecha_NAV);
+                    if (!endPointDate || navDate > endPointDate) {
+                        if (navDate <= endDateObj || endDateObj.getTime() > (Date.now() - 24 * 60 * 60 * 1000)) {
+                            endBalance = Number(fund.NAV_actual * fund.participaciones);
+                        }
+                    }
+                }
+
+                if (isNaN(startBalance)) startBalance = 0;
+                if (isNaN(endBalance)) endBalance = 0;
+
+                return {
+                    ...fund,
+                    startBalance,
+                    endBalance
+                };
+            });
+
+            const totalEndBalance = fundsWithBalances.reduce((acc: number, f: any) => acc + f.endBalance, 0);
+
+            const enrichedPortfolio = {
+                ...portfolio,
+                fondos: fundsWithBalances.map((fund: any) => {
+                    const weightPct = totalEndBalance > 0 ? (fund.endBalance / totalEndBalance) * 100 : 0;
+                    const formatPct = (val: number) => new Intl.NumberFormat('es-ES', { style: 'percent', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val / 100);
+
+                    return {
+                        ...fund,
+                        reportData: {
+                            pesoPct: formatPct(weightPct)
+                        }
+                    };
+                })
+            };
+
+            const response = await fetch('/api/reports/portfolio-deep-analysis', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    portfolioData: enrichedPortfolio
+                })
+            });
+
+            const data = await response.json();
+            if (data.report) {
+                setAiDeepReportMarkdown(data.report);
+            } else {
+                console.error("Error generando el informe profundo:", data.error);
+                alert("Error generando el informe: " + (data.error || "Error desconocido"));
+            }
+        } catch (error) {
+            console.error("Fetch error:", error);
+            alert("Error de conexión al generar el informe.");
+        } finally {
+            setAiDeepLoading(false);
+            // Move back to top of screen when generated
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    };
 
     const handleGenerateAiReport = async (formData: any) => {
         if (!portfolio) return;
@@ -240,102 +341,170 @@ export default function ReportsPage() {
     };
 
     return (
-        <main className="min-h-screen p-8 md:p-12 space-y-8 pb-20">
-            <div className="flex justify-between items-center">
-                <div>
-                    <h1 className="text-4xl font-bold tracking-tight">Reportes</h1>
-                    <p className="text-muted-foreground mt-2">Descarga y visualiza informes detallados.</p>
+        <>
+            <main className="min-h-screen p-8 md:p-12 space-y-8 pb-20">
+                <div className="flex justify-between items-center">
+                    <div>
+                        <h1 className="text-4xl font-bold tracking-tight">Reportes</h1>
+                        <p className="text-muted-foreground mt-2">Descarga y visualiza informes detallados.</p>
+                    </div>
                 </div>
-            </div>
 
-            {/* Tab Selection */}
-            <div className="flex gap-4 border-b border-border pb-1">
-                <button
-                    onClick={() => setActiveTab("basic")}
-                    className={`pb-2 px-4 text-sm font-medium transition-colors ${activeTab === "basic"
-                        ? "border-b-2 border-primary text-primary"
-                        : "text-muted-foreground hover:text-foreground"
-                        }`}
-                >
-                    <div className="flex items-center gap-2">
-                        <BarChart3 className="w-4 h-4" />
-                        Informe de Inversiones
-                    </div>
-                </button>
-                <button
-                    onClick={() => setActiveTab("analysis")}
-                    className={`pb-2 px-4 text-sm font-medium transition-colors ${activeTab === "analysis"
-                        ? "border-b-2 border-primary text-primary"
-                        : "text-muted-foreground hover:text-foreground"
-                        }`}
-                >
-                    <div className="flex items-center gap-2">
-                        <BrainCircuit className="w-4 h-4" />
-                        Informe de Estrategia (IA)
-                    </div>
-                </button>
-            </div>
+                {/* Tab Selection */}
+                <div className="flex gap-4 border-b border-border pb-1 overflow-x-auto">
+                    <button
+                        onClick={() => setActiveTab("basic")}
+                        className={`pb-2 px-4 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === "basic"
+                            ? "border-b-2 border-primary text-primary"
+                            : "text-muted-foreground hover:text-foreground"
+                            }`}
+                    >
+                        <div className="flex items-center gap-2">
+                            <BarChart3 className="w-4 h-4" />
+                            Informe de Inversiones
+                        </div>
+                    </button>
+                    <button
+                        onClick={() => setActiveTab("deep_analysis")}
+                        className={`pb-2 px-4 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === "deep_analysis"
+                            ? "border-b-2 border-primary text-primary"
+                            : "text-muted-foreground hover:text-foreground"
+                            }`}
+                    >
+                        <div className="flex items-center gap-2">
+                            <Sparkles className="w-4 h-4" />
+                            Análisis de la Cartera (IA)
+                        </div>
+                    </button>
+                    <button
+                        onClick={() => setActiveTab("analysis")}
+                        className={`pb-2 px-4 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === "analysis"
+                            ? "border-b-2 border-primary text-primary"
+                            : "text-muted-foreground hover:text-foreground"
+                            }`}
+                    >
+                        <div className="flex items-center gap-2">
+                            <BrainCircuit className="w-4 h-4" />
+                            Informe de Estrategia (IA)
+                        </div>
+                    </button>
+                </div>
 
-            {/* Content Area */}
-            {activeTab === "basic" && (
-                <div className="grid grid-cols-1 gap-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                    <div className="flex justify-end">
-                        <Button onClick={() => handlePrintBasic && handlePrintBasic()} className="gap-2" size="lg">
-                            <Printer className="w-5 h-5" />
-                            Imprimir / Guardar PDF
+                {/* Content Area */}
+                {activeTab === "basic" && (
+                    <div className="grid grid-cols-1 gap-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                        <div className="flex justify-end">
+                            <Button onClick={() => handlePrintBasic && handlePrintBasic()} className="gap-2" size="lg">
+                                <Printer className="w-5 h-5" />
+                                Imprimir / Guardar PDF
+                            </Button>
+                        </div>
+                        <Card className="bg-muted/30 border-dashed">
+                            <CardHeader className="text-center">
+                                <CardTitle className="flex justify-center flex-col items-center gap-4">
+                                    <FileText className="w-12 h-12 text-primary/50" />
+                                    Vista Previa
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="flex justify-center overflow-auto bg-slate-100/50 p-8 rounded-xl">
+                                <div className="w-[210mm] min-h-[297mm] bg-white shadow-xl scale-[0.6] origin-top border border-slate-200">
+                                    <InvestmentSnapshotReport ref={basicReportRef} portfolio={portfolio} reportDate={reportDate} />
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+                )}
+
+                {activeTab === "analysis" && (
+                    <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                        {!aiReportMarkdown ? (
+                            <div className="max-w-4xl mx-auto py-8">
+                                <PortfolioAnalysisForm onGenerate={handleGenerateAiReport} loading={aiLoading} />
+                            </div>
+                        ) : (
+                            <div className="space-y-6">
+                                <div className="flex justify-between items-center bg-card p-4 rounded-lg border shadow-sm">
+                                    <Button variant="outline" onClick={() => setAiReportMarkdown(null)} className="gap-2">
+                                        <ArrowLeft className="w-4 h-4" />
+                                        Nuevo Informe
+                                    </Button>
+                                    <Button onClick={() => handlePrintAi && handlePrintAi()} className="gap-2 bg-emerald-600 hover:bg-emerald-700">
+                                        <Printer className="w-5 h-5" />
+                                        Descargar PDF Profesional
+                                    </Button>
+                                </div>
+
+                                <Card className="bg-muted/30 border-dashed">
+                                    <CardContent className="flex justify-center overflow-auto bg-slate-200/50 p-8 rounded-xl">
+                                        {/* Preview Wrapper */}
+                                        <div className="w-[210mm] min-h-[297mm] bg-white shadow-2xl scale-[0.85] origin-top border border-slate-200">
+                                            <PortfolioAnalysisReport
+                                                ref={aiReportRef}
+                                                markdown={aiReportMarkdown}
+                                                reportDate={new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' })}
+                                            />
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {activeTab === "deep_analysis" && (
+                    <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                        {!aiDeepReportMarkdown ? (
+                            <div className="max-w-4xl mx-auto py-8">
+                                <PortfolioDeepAnalysisForm onGenerate={handleGenerateAiDeepReport} loading={aiDeepLoading} />
+                            </div>
+                        ) : (
+                            <div className="space-y-6">
+                                <div className="flex justify-between items-center bg-card p-4 rounded-lg border shadow-sm">
+                                    <Button variant="outline" onClick={() => setAiDeepReportMarkdown(null)} className="gap-2">
+                                        <ArrowLeft className="w-4 h-4" />
+                                        Nuevo Análisis
+                                    </Button>
+                                    <Button onClick={() => handlePrintAiDeep && handlePrintAiDeep()} className="gap-2 bg-emerald-600 hover:bg-emerald-700">
+                                        <Printer className="w-5 h-5" />
+                                        Descargar PDF Profesional
+                                    </Button>
+                                </div>
+
+                                <Card className="bg-muted/30 border-dashed">
+                                    <CardContent className="flex justify-center overflow-auto bg-slate-200/50 p-8 rounded-xl">
+                                        {/* Preview Wrapper */}
+                                        <div className="w-[210mm] min-h-[297mm] bg-white shadow-2xl scale-[0.85] origin-top border border-slate-200">
+                                            <PortfolioDeepAnalysisReport
+                                                ref={aiDeepReportRef}
+                                                markdown={aiDeepReportMarkdown}
+                                                reportDate={new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' })}
+                                            />
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </main>
+            <Modal isOpen={showDeepConfirm} onClose={() => setShowDeepConfirm(false)} title="Atención: Análisis Profundo">
+                <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                        Este proceso utiliza Deep Research y cruzará grandes cantidades de datos con fuentes macroeconómicas para generar un informe extenso y profundo.
+                    </p>
+                    <p className="text-sm text-foreground font-medium">
+                        El proceso puede tardar un minuto en completarse.
+                    </p>
+                    <div className="flex justify-end gap-3 pt-4">
+                        <Button variant="outline" onClick={() => setShowDeepConfirm(false)}>
+                            Cancelar
+                        </Button>
+                        <Button onClick={confirmAndExecuteDeepReport}>
+                            Sí, continuar
                         </Button>
                     </div>
-                    <Card className="bg-muted/30 border-dashed">
-                        <CardHeader className="text-center">
-                            <CardTitle className="flex justify-center flex-col items-center gap-4">
-                                <FileText className="w-12 h-12 text-primary/50" />
-                                Vista Previa
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="flex justify-center overflow-auto bg-slate-100/50 p-8 rounded-xl">
-                            <div className="w-[210mm] min-h-[297mm] bg-white shadow-xl scale-[0.6] origin-top border border-slate-200">
-                                <InvestmentSnapshotReport ref={basicReportRef} portfolio={portfolio} reportDate={reportDate} />
-                            </div>
-                        </CardContent>
-                    </Card>
                 </div>
-            )}
-
-            {activeTab === "analysis" && (
-                <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-                    {!aiReportMarkdown ? (
-                        <div className="max-w-4xl mx-auto py-8">
-                            <PortfolioAnalysisForm onGenerate={handleGenerateAiReport} loading={aiLoading} />
-                        </div>
-                    ) : (
-                        <div className="space-y-6">
-                            <div className="flex justify-between items-center bg-card p-4 rounded-lg border shadow-sm">
-                                <Button variant="outline" onClick={() => setAiReportMarkdown(null)} className="gap-2">
-                                    <ArrowLeft className="w-4 h-4" />
-                                    Nuevo Informe
-                                </Button>
-                                <Button onClick={() => handlePrintAi && handlePrintAi()} className="gap-2 bg-emerald-600 hover:bg-emerald-700">
-                                    <Printer className="w-5 h-5" />
-                                    Descargar PDF Profesional
-                                </Button>
-                            </div>
-
-                            <Card className="bg-muted/30 border-dashed">
-                                <CardContent className="flex justify-center overflow-auto bg-slate-200/50 p-8 rounded-xl">
-                                    {/* Preview Wrapper */}
-                                    <div className="w-[210mm] min-h-[297mm] bg-white shadow-2xl scale-[0.85] origin-top border border-slate-200">
-                                        <PortfolioAnalysisReport
-                                            ref={aiReportRef}
-                                            markdown={aiReportMarkdown}
-                                            reportDate={new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' })}
-                                        />
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </div>
-                    )}
-                </div>
-            )}
-        </main>
+            </Modal>
+        </>
     );
 }
