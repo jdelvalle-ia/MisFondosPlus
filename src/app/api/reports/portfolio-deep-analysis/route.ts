@@ -63,8 +63,9 @@ export async function POST(req: Request) {
             ``,
             `Recomendaciones Tácticas y Hoja de Ruta:`,
             `- Bajas: Propón la salida de fondos con bajo rendimiento o costes excesivos.`,
-            `- Altas: Sugiere la entrada en Activos Reales e Infraestructuras.`,
-            `- **CRÍTICO - Hoja de Ruta punto 3**: Al proponer investigar y seleccionar fondos de "bonos corporativos, High Yield, REITs de Data Centers e infraestructuras", DEBES sugerir nombres de fondos reales e ISINs específicos que sean líderes en estas categorías (ej. de gestoras como PIMCO, BlackRock, J.P. Morgan, DWS, etc.).`,
+            `- Altas: Sugiere la entrada en Activos Reales e Infraestructuras.` +
+            ` **LIMITACIÓN CRÍTICA**: Los fondos que recomiendes DEBEN estar denominados siempre en EUROS (EUR) y estar disponibles en la plataforma de Morningstar y/o Bankinter.`,
+            `- **CRÍTICO - Hoja de Ruta punto 3**: Al proponer investigar y seleccionar fondos de "bonos corporativos, High Yield, REITs de Data Centers e infraestructuras", DEBES sugerir nombres de fondos reales e ISINs específicos que sean líderes en estas categorías (ej. de gestoras como PIMCO, BlackRock, J.P. Morgan, DWS, etc.). RECUERDA: Solo fondos en moneda EURO y disponibles en Morningstar/Bankinter.`,
             ``,
             `Estructura del Informe (Formato para renderizar a PDF):`,
             `- Portada y Resumen Ejecutivo: Visión directa de la salud financiera.`,
