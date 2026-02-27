@@ -117,10 +117,11 @@ export async function POST(req: Request) {
             `    *   **LIMITACIÓN CRÍTICA**: Los fondos que recomiendes DEBEN estar denominados siempre en EUROS (EUR) y estar disponibles en la plataforma de Morningstar y/o Bankinter.`,
             `*   **Ajuste al Horizonte (${horizon}):** ¿Es necesario rebalancear para reducir riesgo o aumentar potencial de aquí a ${horizon}?`,
             ``,
-            `**POLÍTICA DE TOLERANCIA CERO CON LA INVENCIÓN (HALLUCINATION):**`,
-            `1. **NO TE INVENTES NADA**: Si recomiendas un fondo, debe ser un fondo real con un ISIN real.`,
-            `2. **VERIFICACIÓN**: Si no tienes la certeza absoluta del ISIN o del nombre exacto del fondo en su clase en EUROS, indícalo claramente o busca una alternativa de la que sí tengas datos.`,
-            `3. **REQUISITO DE MONEDA Y PLATAFORMA**: Verifica que el ISIN corresponde a la clase "Euro" del fondo y que se comercializa en España vía Bankinter o Morningstar.`,
+            `**POLÍTICA DE TOLERANCIA CERO CON LA INVENCIÓN (HALLUCINATION):**
+1. **NO TE INVENTES NADA**: Si recomiendas un fondo, debe ser un fondo real con un ISIN real.
+2. **VERIFICACIÓN DE ISIN**: Si no tienes la certeza absoluta del 100% del ISIN exacto para la clase en EUROS de un fondo, **NO LO ESCRIBAS**. En su lugar, escribe exactamente: "[VERIFICAR ISIN EN BANKINTER]". Es preferible el nombre correcto sin ISIN que un ISIN inventado.
+3. **REQUISITO DE MONEDA Y PLATAFORMA**: Verifica que el ISIN corresponde a la clase "Euro" del fondo (Acc / EUR) y que se comercializa en España vía Bankinter o Morningstar.
+`,
             ``,
             `# 9. Fuentes y Referencias de Recomendaciones`,
             `Para cada fondo nuevo recomendado, indica de qué fuente (NotebookLM, Cartera Modelo Bankinter, CIO Report, BlackRock, etc.) se ha extraído la tesis de inversión y confirma su disponibilidad en EUR.`,
