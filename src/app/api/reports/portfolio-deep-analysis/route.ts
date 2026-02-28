@@ -80,7 +80,6 @@ export async function POST(req: Request) {
             `- Conclusiones Críticas: Los 3 mayores riesgos actuales.`,
             `- Hoja de Ruta (Próximas 48 horas): Pasos concretos de ejecución, incluyendo los nombres e ISINs de fondos sugeridos en el punto de investigación.`,
             `- **TABLA RESUMEN DE RECOMENDACIONES**: Incluye una tabla con las columnas: | Fondo | ISIN | Acción Recomendada | Motivo |. En "Acción Recomendada" usa iconos: 🟢 Mantener, 🔴 Vender, 🟡 Traspasar / Bajo Vigilancia.`,
-            `- **# FUENTES Y REFERENCIAS DE RECOMENDACIONES (AL FINAL)**: Para cada fondo nuevo recomendado, indica de qué fuente de NotebookLM o informe estratégico se ha extraído la tesis de inversión (ej. "Basado en Cartera Modelo Bankinter" o "Perspectivas BlackRock") y confirma su disponibilidad en Morningstar/Bankinter en EUR.`,
             ``,
             `Tono: Profesional, directo, analítico y con profundidad técnica de "Banca Privada".`,
             `Extensión: Contenido extremadamente detallado de unas 15 páginas. No resumas.`,
