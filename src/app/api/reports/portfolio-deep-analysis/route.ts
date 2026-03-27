@@ -9,6 +9,7 @@ export async function POST(req: Request) {
         } = await req.json();
 
         const apiKey = process.env.GOOGLE_GEMINI_API_KEY;
+        const notebookId = process.env.NOTEBOOK_ID;
 
         if (!apiKey) {
             return NextResponse.json(
@@ -53,6 +54,7 @@ export async function POST(req: Request) {
             `${JSON.stringify(compactPortfolioData, null, 2)}`,
             ``,
             `**CONTEXTO DE MERCADO ACTUAL (Simulación NotebookLM):**`,
+            `*   **ID de la Fuente de Contexto:** ${notebookId || 'N/A'}`,
             `${marketContext}`,
             ``,
             `Instrucciones de Análisis (Obligatorio - Sé exhaustivo):`,
