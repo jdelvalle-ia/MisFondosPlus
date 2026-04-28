@@ -50,16 +50,16 @@ INSTRUCCIONES CLAVE:
         // RETRY LOGIC
         let result;
         let attempt = 0;
-        const maxRetries = 3;
+        const maxRetries = 2; // Reduced to avoid Vercel timeout
 
         while (attempt < maxRetries) {
             try {
                 result = await model.generateContent(prompt);
                 break; // Success
             } catch (error: any) {
-                if (error.status === 429) {
+                if (error.status === 429 && attempt < maxRetries - 1) {
                     attempt++;
-                    await sleep(attempt * 2000);
+                    await sleep(1500);
                 } else {
                     throw error;
                 }

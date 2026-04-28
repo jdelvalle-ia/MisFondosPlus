@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { ICartera } from '@/types';
 import { formatCurrency } from '@/lib/utils';
 import { updateFundWithApiData } from '@/lib/fund-utils';
@@ -19,6 +19,7 @@ interface PortfolioContextType {
     refreshStatus: { current: string; remaining: number; total: number } | null;
     refreshFund: (isin: string) => Promise<void>;
     lastSyncTime: Date | null;
+    cancelSync: () => void;
 }
 
 const PortfolioContext = createContext<PortfolioContextType | undefined>(undefined);
@@ -30,8 +31,14 @@ export const PortfolioProvider = ({ children }: { children: React.ReactNode }) =
     const [isConsoleOpen, setIsConsoleOpen] = useState(false);
     const [refreshStatus, setRefreshStatus] = useState<{ current: string; remaining: number; total: number } | null>(null);
     const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
+    const cancelSyncRef = useRef(false);
 
     const toggleConsole = () => setIsConsoleOpen(prev => !prev);
+
+    const cancelSync = () => {
+        cancelSyncRef.current = true;
+        addLog("Cancelación solicitada por el usuario...");
+    };
 
     const addLog = (msg: string) => {
         const time = new Date().toLocaleTimeString();
@@ -82,9 +89,15 @@ export const PortfolioProvider = ({ children }: { children: React.ReactNode }) =
         // We will mutate a clone of the funds array to keep track, 
         // but we will ALSO update the state incrementally.
         let currentFunds = [...portfolio.fondos];
+        cancelSyncRef.current = false;
 
         // Sequential update to avoid rate limits
         for (let i = 0; i < total; i++) {
+            if (cancelSyncRef.current) {
+                addLog("=== SINCRONIZACIÓN CANCELADA ===");
+                break;
+            }
+
             // Always get the latest state/clone to ensure we don't overwrite previous loop updates if state changed elsewhere (unlikely during blocking load, but good practice)
             const fondo = currentFunds[i];
             const remaining = total - 1 - i;
@@ -101,8 +114,20 @@ export const PortfolioProvider = ({ children }: { children: React.ReactNode }) =
                 });
 
                 if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.error || response.statusText);
+                    const contentType = response.headers.get("content-type");
+                    if (contentType && contentType.includes("application/json")) {
+                        const error = await response.json();
+                        throw new Error(error.error || response.statusText);
+                    } else {
+                        await response.text();
+                        throw new Error(`Error de servidor (${response.status}). Posible timeout de Vercel.`);
+                    }
+                }
+
+                const contentType = response.headers.get("content-type");
+                if (!contentType || !contentType.includes("application/json")) {
+                     await response.text();
+                     throw new Error("Respuesta no válida del servidor (no es JSON). Posible timeout de Vercel.");
                 }
 
                 const data = await response.json();
@@ -141,10 +166,10 @@ export const PortfolioProvider = ({ children }: { children: React.ReactNode }) =
             }
 
             // --- RATE LIMITING DELAY ---
-            // Wait 5 seconds before next request to avoid Gemini 429 errors
-            if (i < total - 1) {
-                // addLog(`  ... Esperando 5s para siguiente petición ...`);
-                await new Promise(resolve => setTimeout(resolve, 5000));
+            // Wait 3 seconds before next request to avoid Gemini 429 errors
+            if (i < total - 1 && !cancelSyncRef.current) {
+                // addLog(`  ... Esperando 3s para siguiente petición ...`);
+                await new Promise(resolve => setTimeout(resolve, 3000));
             }
         }
 
@@ -192,8 +217,20 @@ export const PortfolioProvider = ({ children }: { children: React.ReactNode }) =
             });
 
             if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || response.statusText);
+                const contentType = response.headers.get("content-type");
+                if (contentType && contentType.includes("application/json")) {
+                    const error = await response.json();
+                    throw new Error(error.error || response.statusText);
+                } else {
+                    await response.text();
+                    throw new Error(`Error de servidor (${response.status}). Posible timeout de Vercel.`);
+                }
+            }
+
+            const contentType = response.headers.get("content-type");
+            if (!contentType || !contentType.includes("application/json")) {
+                 await response.text();
+                 throw new Error("Respuesta no válida del servidor (no es JSON). Posible timeout de Vercel.");
             }
 
             const data = await response.json();
@@ -231,7 +268,7 @@ export const PortfolioProvider = ({ children }: { children: React.ReactNode }) =
     };
 
     return (
-        <PortfolioContext.Provider value={{ portfolio, setPortfolio, loading, refreshPortfolio, logs, addLog, isConsoleOpen, toggleConsole, moveFund, renamePortfolio, refreshStatus, refreshFund, lastSyncTime }}>
+        <PortfolioContext.Provider value={{ portfolio, setPortfolio, loading, refreshPortfolio, logs, addLog, isConsoleOpen, toggleConsole, moveFund, renamePortfolio, refreshStatus, refreshFund, lastSyncTime, cancelSync }}>
             {children}
         </PortfolioContext.Provider>
     );

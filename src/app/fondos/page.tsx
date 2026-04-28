@@ -2,7 +2,7 @@
 
 import { FundsTable } from "@/components/funds/FundsTable";
 import { Button } from "@/components/ui/Button";
-import { Plus, RefreshCw, PenLine } from "lucide-react";
+import { Plus, RefreshCw, PenLine, Ban } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { Modal } from "@/components/ui/Modal";
@@ -11,7 +11,7 @@ import { usePortfolio } from "@/context/PortfolioContext";
 import { IFondo } from "@/types";
 
 export default function FundsPage() {
-    const { portfolio, renamePortfolio, refreshPortfolio, loading, refreshStatus } = usePortfolio();
+    const { portfolio, renamePortfolio, refreshPortfolio, loading, refreshStatus, cancelSync } = usePortfolio();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedFund, setSelectedFund] = useState<IFondo | null>(null);
     const [isEditingName, setIsEditingName] = useState(false);
@@ -74,6 +74,11 @@ export default function FundsPage() {
                             ? `Actualizando: ${refreshStatus.remaining} restantes...`
                             : "Actualizar Valores"}
                     </Button>
+                    {loading && (
+                        <Button variant="destructive" onClick={cancelSync} className="gap-2" title="Cancelar Sincronización">
+                            <Ban className="w-4 h-4" />
+                        </Button>
+                    )}
                     <Button onClick={handleNewFund} className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-900/20">
                         <Plus className="w-4 h-4 mr-2" />
                         Nuevo Fondo
