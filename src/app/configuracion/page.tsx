@@ -4,7 +4,7 @@ import { usePortfolio } from "@/context/PortfolioContext";
 import { PortfolioControls } from "@/components/funds/PortfolioControls";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { RefreshCw, Save, Database, ShieldCheck, Key, Clock, Wifi, Activity } from "lucide-react";
+import { RefreshCw, Save, Database, ShieldCheck, Key, Clock, Wifi, Activity, Ban } from "lucide-react";
 import { useState } from "react";
 
 const ApiStatusBadge = () => {
@@ -78,7 +78,7 @@ const ApiStatusBadge = () => {
 };
 
 export default function SettingsPage() {
-    const { refreshPortfolio, loading, addLog, refreshStatus, lastSyncTime } = usePortfolio();
+    const { refreshPortfolio, loading, addLog, refreshStatus, lastSyncTime, cancelSync } = usePortfolio();
 
     const handleRefresh = async () => {
         await refreshPortfolio();
@@ -111,14 +111,25 @@ export default function SettingsPage() {
                             </p>
                         </div>
                         <div className="mt-4">
-                            <Button
-                                onClick={handleRefresh}
-                                disabled={loading}
-                                className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-6 rounded-xl transition-all shadow-lg shadow-blue-900/20"
-                            >
-                                {loading ? <RefreshCw className="mr-2 h-5 w-5 animate-spin" /> : <RefreshCw className="mr-2 h-5 w-5" />}
-                                {loading ? "Sincronizando..." : "Sincronizar Todo"}
-                            </Button>
+                            <div className="flex flex-col gap-2">
+                                <Button
+                                    onClick={handleRefresh}
+                                    disabled={loading}
+                                    className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-6 rounded-xl transition-all shadow-lg shadow-blue-900/20"
+                                >
+                                    {loading ? <RefreshCw className="mr-2 h-5 w-5 animate-spin" /> : <RefreshCw className="mr-2 h-5 w-5" />}
+                                    {loading ? "Sincronizando..." : "Sincronizar Todo"}
+                                </Button>
+                                {loading && (
+                                    <Button 
+                                        variant="destructive" 
+                                        onClick={cancelSync} 
+                                        className="w-full py-6 rounded-xl shadow-lg"
+                                    >
+                                        <Ban className="mr-2 h-5 w-5" /> Cancelar
+                                    </Button>
+                                )}
+                            </div>
                             {loading && refreshStatus && (
                                 <p className="text-xs text-center text-blue-400 mt-2 animate-pulse">
                                     {refreshStatus.current} ({refreshStatus.remaining} restantes)

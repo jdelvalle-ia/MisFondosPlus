@@ -122,7 +122,7 @@ export const Sidebar = () => {
 
                         <div className="bg-gradient-to-br from-primary/10 to-primary/5 p-4 rounded-xl border border-primary/10 text-center">
                             <p className="text-xs font-medium text-primary mb-1">Status: Premium</p>
-                            <p className="text-[10px] text-muted-foreground">Sistema actualizado - v1.0.5</p>
+                            <p className="text-[10px] text-muted-foreground">Sistema actualizado - v0.2.0</p>
                         </div>
                     </div>
                 </div>

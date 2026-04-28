@@ -32,11 +32,15 @@ export const PortfolioProvider = ({ children }: { children: React.ReactNode }) =
     const [refreshStatus, setRefreshStatus] = useState<{ current: string; remaining: number; total: number } | null>(null);
     const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
     const cancelSyncRef = useRef(false);
+    const abortControllerRef = useRef<AbortController | null>(null);
 
     const toggleConsole = () => setIsConsoleOpen(prev => !prev);
 
     const cancelSync = () => {
         cancelSyncRef.current = true;
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+        }
         addLog("Cancelación solicitada por el usuario...");
     };
 
@@ -90,6 +94,7 @@ export const PortfolioProvider = ({ children }: { children: React.ReactNode }) =
         // but we will ALSO update the state incrementally.
         let currentFunds = [...portfolio.fondos];
         cancelSyncRef.current = false;
+        abortControllerRef.current = new AbortController();
 
         // Sequential update to avoid rate limits
         for (let i = 0; i < total; i++) {
@@ -110,7 +115,8 @@ export const PortfolioProvider = ({ children }: { children: React.ReactNode }) =
                 const response = await fetch('/api/nav', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ isin: fondo.ISIN, name: fondo.denominacion })
+                    body: JSON.stringify({ isin: fondo.ISIN, name: fondo.denominacion }),
+                    signal: abortControllerRef.current?.signal
                 });
 
                 if (!response.ok) {
@@ -161,15 +167,27 @@ export const PortfolioProvider = ({ children }: { children: React.ReactNode }) =
                 } else {
                     addLog(`⚠ ${fondo.denominacion}: Sin cambios significativos.`);
                 }
-            } catch (err) {
-                addLog(`✖ Error en ${fondo.denominacion}: ${err instanceof Error ? err.message : String(err)}`);
+            } catch (err: any) {
+                if (err.name === 'AbortError') {
+                    addLog(`⚠ Operación cancelada: ${fondo.denominacion}`);
+                } else {
+                    addLog(`✖ Error en ${fondo.denominacion}: ${err instanceof Error ? err.message : String(err)}`);
+                }
             }
 
-            // --- RATE LIMITING DELAY ---
             // Wait 3 seconds before next request to avoid Gemini 429 errors
             if (i < total - 1 && !cancelSyncRef.current) {
-                // addLog(`  ... Esperando 3s para siguiente petición ...`);
-                await new Promise(resolve => setTimeout(resolve, 3000));
+                try {
+                    await new Promise((resolve, reject) => {
+                        const timeout = setTimeout(resolve, 3000);
+                        if (abortControllerRef.current) {
+                            abortControllerRef.current.signal.addEventListener('abort', () => {
+                                clearTimeout(timeout);
+                                resolve(true);
+                            });
+                        }
+                    });
+                } catch (e) {}
             }
         }
 
