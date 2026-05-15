@@ -28,7 +28,7 @@ export async function POST(req: Request) {
         // Initialize Gemini.
         // gemini-3.1-pro is highly capable of deep reporting and follows instructions well.
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-3.1-pro-preview" });
+        const model = genAI.getGenerativeModel({ model: "gemini-3.1-pro" });
 
         // Extraer específicamente los datos requeridos por el usuario: nombre del fondo, ISIN, valor actual y %
         const compactPortfolioData = portfolioData.fondos.map((fund: { denominacion: string, ISIN: string, endBalance: number, reportData?: { pesoPct: string } }) => ({

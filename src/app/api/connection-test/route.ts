@@ -13,7 +13,7 @@ export async function POST() {
         }
 
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-3.1-pro-preview" });
+        const model = genAI.getGenerativeModel({ model: "gemini-3.1-pro" });
 
         // Minimal generation to test connectivity and quota
         try {
