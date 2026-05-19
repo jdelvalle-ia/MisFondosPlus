@@ -16,9 +16,9 @@ export async function POST(req: Request) {
         }
 
         const genAI = new GoogleGenerativeAI(geminiKey);
-        // Use gemini-3.1-pro
+        // Use gemini-3.1-pro-preview
         const model = genAI.getGenerativeModel({
-            model: "gemini-3.1-pro",
+            model: "gemini-3.1-pro-preview",
             tools: [{ googleSearch: {} } as any]
         });
 
